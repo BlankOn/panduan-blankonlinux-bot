@@ -87,17 +87,34 @@ class QueryController extends TelegramBaseInlineQueryController {
     handle($){
       var query = $._inlineQuery._query;
 
-      api.get('/posts?search='+query)
+      api.get('/posts?per_page=1&search='+query)
         .then(function (response) {
-          //console.log(response.data);
+
           var answers = [];
 
           response.data.forEach(function(item){
             console.log(item.slug);
-            var content = item.excerpt.rendered.replace(/(<([^>]+)>)/ig,"").substring(0,500);
-            content = content + "\n\n" + item.link;
+
+            var title       = decodeHTMLEntities(item.title.rendered).replace(/(<([^>]+)>)/ig,"")
+            var content     = decodeHTMLEntities(item.excerpt.rendered).replace(/(<([^>]+)>)/ig,"").substring(0,200);
+            var inlineDesc  = content.substring(0,100)+'...';
+
+            content = content + "...\n\n" + item.link;
+
             var message = new InputTextMessageContent(content);
-            answers.push(new InlineQueryResultArticle('article', item.id.toString(), item.title.rendered, message));
+
+            answers.push(new InlineQueryResultArticle(
+              'article',                // type 
+              item.id.toString(),       // id
+              item.title.rendered,      // title
+              message,                  // InputTextMessageContent
+              null,                     // Reply markup
+              item.link,                // URL
+              false,                     // hide URL
+              inlineDesc                // Description
+            ));
+
+
           })
 
           return $.answer(answers);
@@ -154,3 +171,23 @@ setInterval(() => {
     })
   }
 }, 1000 * 60 * 10);
+
+
+var entities = {
+  'amp': '&',
+  'apos': '\'',
+  '#x27': '\'',
+  '#x2F': '/',
+  '#39': '\'',
+  '#47': '/',
+  'lt': '<',
+  'gt': '>',
+  'nbsp': ' ',
+  'quot': '"'
+}
+
+function decodeHTMLEntities (text) {
+  return text.replace(/&([^;]+);/gm, function (match, entity) {
+    return entities[entity] || match
+  })
+}
