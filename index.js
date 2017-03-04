@@ -2,7 +2,11 @@
 
 const token = process.env.TOKEN;
 const Telegram = require('telegram-node-bot')
+const Axios = require('axios')
 const TelegramBaseController = Telegram.TelegramBaseController
+const TelegramBaseInlineQueryController = Telegram.TelegramBaseInlineQueryController
+const InlineQueryResultArticle = Telegram.Models.InlineQueryResultArticle
+const InputTextMessageContent = Telegram.Models.InputTextMessageContent
 const TextCommand = Telegram.TextCommand
 const tg = new Telegram.Telegram(token, { workers : 1})
 const request = require('request');
@@ -10,6 +14,11 @@ const parseString = require('xml2js').parseString;
 
 var registered = [];
 var lastTitle = '';
+
+let api = Axios.create({
+  baseURL: 'http://panduan.blankonlinux.or.id/wp-json/wp/v2'
+});
+ 
 
 class PingController extends TelegramBaseController {
   /**
@@ -72,6 +81,42 @@ class UnregisterController extends TelegramBaseController {
   }
 }
 
+class QueryController extends TelegramBaseInlineQueryController {
+    
+
+    handle($){
+      var query = $._inlineQuery._query;
+
+      api.get('/posts?search='+query)
+        .then(function (response) {
+          //console.log(response.data);
+          var answers = [];
+
+          response.data.forEach(function(item){
+            console.log(item.slug);
+            var content = item.excerpt.rendered.replace(/(<([^>]+)>)/ig,"").substring(0,500);
+            content = content + "\n\n" + item.link;
+            var message = new InputTextMessageContent(content);
+            answers.push(new InlineQueryResultArticle('article', item.id.toString(), item.title.rendered, message));
+          })
+
+          return $.answer(answers);
+
+        })
+        .catch(function (error) {
+          console.log(error);
+          return $.answer(answers);
+        });
+
+    }
+
+    chosenResult($){
+      console.log('chosenResult');
+      console.log($);
+    }
+
+}
+
 tg.router
   .when(
     new TextCommand('ping', 'pingCommand'),
@@ -86,6 +131,9 @@ tg.router
     new UnregisterController()
   );
 
+// Inline query
+tg.router
+  .inlineQuery(new QueryController());
 
 setInterval(() => {
   console.log(registered);
