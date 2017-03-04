@@ -87,9 +87,9 @@ class QueryController extends TelegramBaseInlineQueryController {
     handle($){
       var query = $._inlineQuery._query;
 
-      api.get('/posts?search='+query)
+      api.get('/posts?per_page=1&search='+query)
         .then(function (response) {
-          //console.log(response.data);
+
           var answers = [];
 
           response.data.forEach(function(item){
